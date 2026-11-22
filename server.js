@@ -17,6 +17,7 @@ wss.on('connection',ws=>{
   ws.alive=true;ws.peer=null;ws.on('pong',()=>{ws.alive=true});
   ws.on('message',d=>{
     let m;try{m=JSON.parse(d)}catch(e){return}
+    if(m.t==='p'){send(ws,{t:'p',ts:Number(m.ts)||Date.now()});return}
     if(m.t==='q'&&!ws.peer&&wait!==ws){
       ws.name=String(m.n||'게스트').slice(0,12);ws.ch=IDS.includes(m.c)?m.c:'magnet';
       if(wait&&wait.readyState===1){
