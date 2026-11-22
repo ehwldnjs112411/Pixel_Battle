@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: pixel-battle
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /healthz
