@@ -84,6 +84,19 @@ body.bt .mc{display:block;position:absolute;inset:0;pointer-events:none;z-index:
 #music-toggle:active{transform:scale(.96)}
 #yt-music-player{position:fixed;left:-220px;top:-220px;width:200px;height:200px;overflow:hidden;opacity:.001;pointer-events:none;z-index:-1}
 @media(pointer:coarse){body.bt #music-toggle{right:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(50%);z-index:21;padding:7px 11px;opacity:.82}}
+body.mb #music-toggle,body.st #music-toggle{display:none}
+.settings-card{background:rgba(30,23,58,.88);border:1px solid rgba(174,150,255,.35);border-radius:18px;padding:16px;margin:12px 0;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.settings-card h2{margin:0 0 14px;color:#fff}
+.settings-control{padding:13px 0;border-top:1px solid rgba(255,255,255,.14)}
+.settings-control:first-of-type{border-top:0}
+.settings-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.settings-head small{display:block;color:#c4bbdf;font-size:12px;margin-top:2px}
+.settings-toggle{background:#6e55ce;color:#fff;border:1px solid #a995ff;border-radius:10px;padding:8px 13px;min-width:94px;font:700 13px system-ui;cursor:pointer}
+.settings-toggle.off{background:#39334f;border-color:#69617f;color:#d4cde4}
+.settings-range-label{display:flex;justify-content:space-between;gap:10px;color:#e6e0ff;font-size:13px;margin:10px 0 4px}
+.settings-range{display:block;width:100%;height:30px;margin:0;padding:0;border:0;background:transparent;accent-color:#9b82ff;cursor:pointer;touch-action:pan-y}
+.settings-footer{margin:18px 0 8px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18)}
+.settings-footer .b{background:#493b68;border:1px solid #8b78ba}
 </style></head><body><div class="bgp"></div><div id="boot-loader" role="status" aria-live="polite">
   <div class="load-shell">
     <div class="load-brand"><span class="load-logo">PB</span><span>PIXEL BATTLE</span></div>
@@ -125,12 +138,16 @@ rain:{n:'레인',c:'#4fd8ff',hp:100,spd:1.6,kcd:240,k:['미니 레이저','중�
 const SQ=[['idle','대기'],['run','이동'],['jump','점프'],['j','기본 공격 J'],['k','스킬 K'],['l','궁극기 L'],['hit','피격'],['dead','사망']];
 
 /* ---------- sound ---------- */
-let ac;function snd(f,d=.1,ty='square',sl=0,v=.05){if(LOADER_PREVIEW)return;try{ac=ac||new AudioContext();const o=ac.createOscillator(),g=ac.createGain(),n=ac.currentTime;o.type=ty;o.frequency.setValueAtTime(f,n);o.frequency.exponentialRampToValueAtTime(Math.max(30,f+sl),n+d);g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g);g.connect(ac.destination);o.start();o.stop(n+d)}catch(e){}}
+let ac,sfxEnabled=S.g('pb_sfx_enabled',true),sfxVolume=Math.max(0,Math.min(100,Number(S.g('pb_sfx_volume',70))));function snd(f,d=.1,ty='square',sl=0,v=.05){if(LOADER_PREVIEW||!sfxEnabled||sfxVolume<=0)return;try{ac=ac||new AudioContext();const o=ac.createOscillator(),g=ac.createGain(),n=ac.currentTime;o.type=ty;o.frequency.setValueAtTime(f,n);o.frequency.exponentialRampToValueAtTime(Math.max(30,f+sl),n+d);g.gain.setValueAtTime(v*(sfxVolume/100),n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g);g.connect(ac.destination);o.start();o.stop(n+d)}catch(e){}}
 
 /* ---------- background music (YouTube) ---------- */
 const MUSIC_VIDEO={menu:'s61vBsyvU1w',battle:'2hlTE3L01so'};
-let musicScene='menu',musicEnabled=S.g('pb_music_enabled',true),musicUnlocked=false;
+let musicScene='menu',musicEnabled=S.g('pb_music_enabled',true),musicVolume=Math.max(0,Math.min(100,Number(S.g('pb_music_volume',65)))),musicUnlocked=false;
 let ytMusicPlayer=null,ytMusicReady=false,ytMusicLoadedScene=null,ytMusicPlaying=false,ytMusicError=0,ytApiRequested=false;
+function applyMusicVolume(){if(ytMusicPlayer&&ytMusicReady){try{ytMusicPlayer.setVolume(Math.round(musicVolume))}catch(e){}}}
+function setMusicVolume(v){musicVolume=Math.max(0,Math.min(100,Number(v)||0));S.s('pb_music_volume',musicVolume);applyMusicVolume();const out=$('#music-volume-value');if(out)out.textContent=musicVolume+'%'}
+function setSfxVolume(v){sfxVolume=Math.max(0,Math.min(100,Number(v)||0));S.s('pb_sfx_volume',sfxVolume);const out=$('#sfx-volume-value');if(out)out.textContent=sfxVolume+'%'}
+function toggleSfx(){sfxEnabled=!sfxEnabled;S.s('pb_sfx_enabled',sfxEnabled);if(scr==='settings')render()}
 function updateMusicButton(){
  const b=$('#music-toggle');if(!b)return;
  b.textContent=!musicEnabled?'♫ 음악 OFF':ytMusicPlaying?(musicScene==='battle'?'♫ 전투 음악':'♫ 메뉴 음악'):ytMusicError?'♫ 재생 오류':'♫ 음악 켜기';
@@ -158,9 +175,9 @@ function unlockMusic(){
 }
 function toggleMusic(){
  musicEnabled=!musicEnabled;S.s('pb_music_enabled',musicEnabled);
- if(musicEnabled){musicUnlocked=true;playCurrentMusic();}
+ if(musicEnabled){musicUnlocked=true;applyMusicVolume();playCurrentMusic();}
  else if(ytMusicPlayer){try{ytMusicPlayer.pauseVideo()}catch(e){}}
- updateMusicButton();
+ updateMusicButton();if(scr==='settings')render();
 }
 function createYouTubeMusicPlayer(){
  if(ytMusicPlayer||!window.YT||!window.YT.Player)return;
@@ -169,7 +186,7 @@ function createYouTubeMusicPlayer(){
  ytMusicPlayer=new YT.Player('yt-music-player',{
   width:'200',height:'200',videoId:MUSIC_VIDEO.menu,playerVars:vars,
   events:{
-   onReady:()=>{ytMusicReady=true;ytMusicError=0;if(musicUnlocked&&musicEnabled)playCurrentMusic(true);updateMusicButton()},
+   onReady:()=>{ytMusicReady=true;ytMusicError=0;applyMusicVolume();if(musicUnlocked&&musicEnabled)playCurrentMusic(true);updateMusicButton()},
    onStateChange:e=>{
     const playing=window.YT&&e.data===YT.PlayerState.PLAYING;
     ytMusicPlaying=!!playing;
@@ -596,7 +613,7 @@ function drawIc(c,i){const x=c.getContext('2d');x.clearRect(0,0,32,32);const r=(
  r(7,5,18,1,l);
  [()=>r(14,11,4,4,l),()=>{r(11,9,10,2,l);r(11,13,10,2,l)},()=>{r(11,15,10,4,l);r(11,10,2,5,l);r(15,8,2,7,l);r(19,10,2,5,l)},()=>{for(let k=-5;k<=5;k++)r(16-(5-Math.abs(k)),12+k,(5-Math.abs(k))*2,1,l)},()=>{r(14,9,4,10,l);r(12,13,8,6,l);r(15,6,2,4,'#fff')},()=>{r(10,15,12,4,l);r(10,9,2,6,l);r(15,6,2,9,l);r(20,9,2,6,l);r(15,12,2,2,'#fff')}][i]()}
 function pick(i){if(!acct().own.includes(i)){go('shop');return}sel=i;save();render()}
-function out(){me=null;save();render()}
+function out(){me=null;save();go('menu')}
 function login(){const n=$('#un').value.trim(),p=$('#pw').value;if(users[n]&&users[n].pw===p){me=n;save();go('menu')}else $('#er').textContent='이름 또는 비밀번호가 올바르지 않아요.'}
 function signup(){const n=$('#un').value.trim(),p=$('#pw').value,p2=$('#pw2').value,e=$('#er');
  if(!n||!p)e.textContent='이름과 비밀번호를 입력해주세요.';else if(p!==p2)e.textContent='비밀번호가 일치하지 않아요.';else if(users[n])e.textContent='이미 있는 이름이에요.';
@@ -626,9 +643,10 @@ addEventListener('contextmenu',e=>{if(G)e.preventDefault()});
 function ai(){mFull();const ids=Object.keys(C);startB(ids[rnd()*ids.length|0])}
 function render(){
  const rwm=tierRw(),a=acct(),ti=tier(a.t),un=MAILS.filter(m=>!(a.mr||[]).includes(m.id)).length;let h='';if(!a.own.includes(sel))sel='magnet';
- const hd=`<div class="hd"><span style="display:flex;align-items:center;gap:8px"><canvas class="av" width="64" height="64" data-p="${pfid()}" onclick="go('prof')"></canvas><span><b>${me||'게스트'}</b><br><i style="color:${ti[2]}">${ti[1]} · 🏆${a.t}</i> · 🪙${a.coin}</span></span>${scr=='menu'?(me?`<button class="b s" onclick="out()">로그아웃</button>`:`<button class="b s" onclick="go('login')">로그인</button>`):`<button class="b s" onclick="go('menu')">← 메뉴</button>`}</div>`;
+ const hd=`<div class="hd"><span style="display:flex;align-items:center;gap:8px"><canvas class="av" width="64" height="64" data-p="${pfid()}" onclick="go('prof')"></canvas><span><b>${me||'게스트'}</b><br><i style="color:${ti[2]}">${ti[1]} · 🏆${a.t}</i> · 🪙${a.coin}</span></span>${scr=='menu'?`<button class="b s" onclick="go('settings')">⚙ 설정</button>`:`<button class="b s" onclick="go('menu')">← 메뉴</button>`}</div>`;
  if(scr=='menu')h=`<h1>⚔ 픽셀 배틀</h1><canvas class="pv" width="80" height="64" data-c="${sel}"></canvas><div class="lb"></div><p style="text-align:center"><b>${C[sel].n}</b> 선택됨</p>
-  <div class="g"><button class="b" onclick="go('match')">⚔ 매칭</button><button class="b" onclick="go('dex')">📖 도감</button><button class="b" onclick="go('tro')">🏆 트로피</button><button class="b" onclick="go('shop')">🛒 상점</button><button class="b" onclick="go('prof')">👤 프로필</button><button class="b" onclick="go('mail')">📬 우편함${un?`<span class="bd">${un}</span>`:''}</button></div>`;
+  <div class="g"><button class="b" onclick="go('match')">⚔ 매칭</button><button class="b" onclick="go('dex')">📖 도감</button><button class="b" onclick="go('tro')">🏆 트로피</button><button class="b" onclick="go('shop')">🛒 상점</button><button class="b" onclick="go('prof')">👤 프로필</button><button class="b" onclick="go('mail')">📬 우편함${un?`<span class=\"bd\">${un}</span>`:''}</button></div>`;
+ else if(scr=='settings')h=`<div class="settings-card"><h2>⚙ 설정</h2><div class="settings-control"><div class="settings-head"><div><b>🔔 효과음</b><small>공격, 피격, 스킬 등 게임 효과음</small></div><button class="settings-toggle ${sfxEnabled?'':'off'}" onclick="toggleSfx()">${sfxEnabled?'켜짐':'꺼짐'}</button></div><label class="settings-range-label" for="sfx-volume"><span>효과음 크기</span><output id="sfx-volume-value">${sfxVolume}%</output></label><input class="settings-range" id="sfx-volume" type="range" min="0" max="100" step="1" value="${sfxVolume}" oninput="setSfxVolume(this.value)"></div><div class="settings-control"><div class="settings-head"><div><b>🎵 배경 음악</b><small>메뉴 음악과 전투 음악</small></div><button class="settings-toggle ${musicEnabled?'':'off'}" onclick="toggleMusic()">${musicEnabled?'켜짐':'꺼짐'}</button></div><label class="settings-range-label" for="music-volume"><span>음악 크기</span><output id="music-volume-value">${musicVolume}%</output></label><input class="settings-range" id="music-volume" type="range" min="0" max="100" step="1" value="${musicVolume}" oninput="setMusicVolume(this.value)"></div></div><div class="settings-footer">${me?`<button class="b" onclick="out()">로그아웃</button>`:`<button class="b" onclick="go('login')">로그인</button>`}</div>`;
  else if(scr=='login')h=`<div class="cd"><h2>로그인</h2><input id="un" placeholder="이름"><input id="pw" type="password" placeholder="비밀번호"><div class="er" id="er"></div><button class="b" onclick="login()">로그인</button><p>계정이 없나요? <a href="#" onclick="go('signup');return false">회원가입</a></p></div>`;
  else if(scr=='signup')h=`<div class="cd"><h2>회원가입</h2><input id="un" placeholder="이름"><input id="pw" type="password" placeholder="비밀번호"><input id="pw2" type="password" placeholder="비밀번호 확인"><div class="er" id="er"></div><button class="b" onclick="signup()">회원가입</button><p><a href="#" onclick="go('login');return false">← 로그인으로</a></p></div>`;
  else if(scr=='match')h=`<div class="cd"><h2>매칭</h2><p>내 캐릭터: <b>${C[sel].n}</b> (도감에서 변경)</p><button class="b" onclick="ai()">🤖 AI 매칭</button><button class="b" onclick="online()">👥 유저 매칭</button><p id="ts"></p></div>`;
@@ -640,7 +658,7 @@ function render(){
   T.map(x=>`<div class="row" style="${x===ti?`background:${x[2]}33;font-weight:700`:''}"><span style="color:${x[2]};display:flex;align-items:center;gap:6px"><canvas class="ic" width="32" height="32" data-t="${T.indexOf(x)}"></canvas>${x[1]}</span><span>${x[0]}~${x[3]} · +${30-T.indexOf(x)*4}/-${5+T.indexOf(x)*3}${TR[T.indexOf(x)]?' · 🎁'+TR[T.indexOf(x)]+((a.tg||[]).includes(T.indexOf(x))?'✔':''):''}</span></div>`).join('')+`</div>`}
  else if(scr=='mail')h=`<div class="cd"><h2>📬 우편함</h2><p style="font-size:13px;opacity:.7">${MAILS.length?'받지 않은 우편 '+un+'개':'우편이 없어요'}</p></div>`+MAILS.map(m=>{const g=(a.mr||[]).includes(m.id);return `<div class="cd"><b>${m.t}</b><p style="font-size:13px">${m.d}</p><p><b>🪙 ${m.coin.toLocaleString()} 코인</b></p><button class="b${g?' s':''}" ${g?'disabled':''} onclick="claim('${m.id}')">${g?'✔ 받음':'받기'}</button></div>`}).join('');
  else if(scr=='dex')h=`<div class="dx">`+Object.keys(C).map(i=>{const c=C[i];return `<div class="cd" style="border-color:${c.c}"><canvas class="pv" width="80" height="64" data-c="${i}"></canvas><div class="lb"></div><b>${c.n}</b> · HP ${c.hp} · 속도 ${c.spd}<p style="font-size:13px"><b>J 기본공격</b> 3연타 콤보 (5·5·8, 마지막은 날려버림)<br><b>K ${c.k[0]}</b> (쿨타임 ${(c.kcd/60).toFixed(1)}초) ${c.k[1]}<br><b>L ${c.l[0]}</b> ${c.l[1]}</p><button class="b${sel==i?'':' s'}" onclick="pick('${i}')">${sel==i?'✔ 선택됨':a.own.includes(i)?'선택':'🔒 상점에서 구매'}</button></div>`}).join('')+`</div>`;
- document.body.classList.remove('bt');document.body.classList.toggle('mb',scr=='menu');A.innerHTML=hd+h;A.querySelectorAll('canvas[data-t]').forEach(c=>drawIc(c,c.dataset.t));A.querySelectorAll('canvas[data-p]').forEach(c=>drawAv(c,c.dataset.p));
+ document.body.classList.remove('bt');document.body.classList.toggle('mb',scr=='menu');document.body.classList.toggle('st',scr=='settings');A.innerHTML=hd+h;A.querySelectorAll('canvas[data-t]').forEach(c=>drawIc(c,c.dataset.t));A.querySelectorAll('canvas[data-p]').forEach(c=>drawAv(c,c.dataset.p));
  if(rwm.length)notice('🎁 '+rwm.join(' / '));PV=[...A.querySelectorAll('canvas[data-c]')].map(c=>({X:c.getContext('2d'),lb:c.nextElementSibling,F:{id:c.dataset.c,x:40,y:56,f:1,stt:0,st:'idle',vx:0,vy:0,flash:0,atk:0,at0:55,cmb:0,inv:0}}));
 }
 render();
