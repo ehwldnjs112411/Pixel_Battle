@@ -26,7 +26,7 @@ wss.on('connection',ws=>{
         send(a,{...base,slot:0});send(b,{...base,slot:1});
       }else wait=ws;
     }else if(m.t==='in'&&ws.peer){
-      send(ws.peer,{t:'in',f:m.f|0,L:m.L?1:0,R:m.R?1:0,D:m.D?1:0,q:KEYS.includes(m.q)?m.q:0});
+      send(ws.peer,{t:'in',f:m.f|0,L:m.L?1:0,R:m.R?1:0,D:m.D?1:0,U:m.U?1:0,q:KEYS.includes(m.q)?m.q:0});
     }else if(m.t==='x')drop(ws);
   });
   ws.on('close',()=>drop(ws));ws.on('error',()=>{});
