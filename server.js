@@ -9,7 +9,7 @@ const srv=http.createServer((req,res)=>{
   res.end(g?gz:raw);
 });
 const wss=new WebSocketServer({server:srv,maxPayload:512});
-const IDS=['magnet','root','mercy','volt','sera','speedy','rain'],KEYS=['U','j','k','l'];
+const IDS=['magnet','root','mercy','volt','sera','speedy','rain','glover','timo','joker'],KEYS=['U','j','k','l'];
 let wait=null;
 const send=(w,o)=>{if(w&&w.readyState===1)w.send(JSON.stringify(o))};
 const drop=w=>{if(wait===w)wait=null;if(w.peer){send(w.peer,{t:'left'});w.peer.peer=null;w.peer=null}};
